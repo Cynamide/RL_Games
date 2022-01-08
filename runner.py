@@ -221,6 +221,6 @@ class Runner:
         return obs
 
 
-model = tf.keras.models.load_model("model.h5")
+model = tf.keras.models.load_model("model-refined.h5")
 runner = Runner(model, model, "./")
 runner.arena()
