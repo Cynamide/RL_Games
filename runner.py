@@ -45,45 +45,18 @@ class Runner:
 
     def evaluate_A(self):
         # Uses self.env as the environment and returns the best action for Player A (Blue)
-        distA = []
-        closeFoodA = [0, 0]
-        for food_loc in self.env.live_foodspawn_space:
-            distA.append(
-                (
-                    (
-                        ((self.env.agentA["state"][0] - food_loc[0]) ** 2)
-                        + ((self.env.agentA["state"][1] - food_loc[1]) ** 2)
-                    )
-                    ** 0.5
-                )
-            )
-        closeFoodA[1] = min(distA)
-        closeFoodA[0] = distA.index(closeFoodA[1])
-        obs = self.get_obs(self.env.agentA, self.env.agentB, "agentA", closeFoodA)
+        obs = self.get_obs(self.env, self.env.agentA, self.env.agentB, "agentA")
         action_A = self.model_A.predict(obs)[0]
         action_A = np.argmax(action_A)
         return action_A  # Action in {0, 1, 2}
 
     def evaluate_B(self):
         # Uses self.env as the environment and returns the best action for Player B (Red)
-        distB = []
-        closeFoodB = [0]
-        for food_loc in self.env.live_foodspawn_space:
-            distB.append(
-                (
-                    (
-                        ((self.env.agentB["state"][0] - food_loc[0]) ** 2)
-                        + ((self.env.agentB["state"][1] - food_loc[1]) ** 2)
-                    )
-                    ** 0.5
-                )
-            )
-        temp = min(distB)
-        closeFoodB[0] = distB.index(temp)
-        obs = self.get_obs(self.env.agentA, self.env.agentB, "agentB", closeFoodB)
+        obs = self.get_obs(self.env, self.env.agentA, self.env.agentB, "agentB")
         action_B = self.model_B.predict(obs)[0]
         action_B = np.argmax(action_B)
         return action_B  # Action in {0, 1, 2}
+        # return int(np.random.choice(3))
 
     def visualize(self, run):
         self.env.reset()
@@ -127,100 +100,23 @@ class Runner:
             self.visualize(run)
         return self.winner
 
-    def get_obs(self, agentA, agentB, agent, closeFood):
-        scoreA = agentA["score"]
-        scoreB = agentB["score"]
-        n = 8
-        score = 0
+    def get_obs(self, env, agentA, agentB, agent):
+        obs, _ = env.encode()
         if agent == "agentA":
-            state = agentA["state"]
-            opp_state = agentB["state"]
-            head = agentA["head"]
-            velocity = agentA["velocity"]
-            if scoreA > scoreB:
-                score = 1
+            obs = obs.reshape(1, -1)
+            score = agentA["score"] / 100
+            obs = np.append(obs, [agentA["head"], score])
+            obs = obs.reshape(1, -1)
+            return obs
         elif agent == "agentB":
-            state = agentB["state"]
-            opp_state = agentA["state"]
-            head = agentB["head"]
-            velocity = agentB["velocity"]
-            if scoreB > scoreA:
-                score = 1
-        danger_top = 0
-        danger_left = 0
-        danger_right = 0
-        if head == 0:  # North
-            if state[1] == velocity - 1:  # Left Wall
-                danger_left = 1
-            if state[0] == velocity - 1:  # Top Wall
-                danger_top = 1
-            if state[1] == n - velocity:  # Right Wall
-                danger_right = 1
-        elif head == 1:  # East
-            if state[0] == velocity - 1:  # Top Wall
-                danger_left = 1
-            if state[1] == n - velocity:  # Right Wall
-                danger_top = 1
-            if state[0] == n - velocity:  # Bottom Wall
-                danger_right = 1
-        elif head == 2:  # South
-            if state[1] == n - velocity:  # Right Wall
-                danger_left = 1
-            if state[0] == n - velocity:  # Bottom Wall
-                danger_top = 1
-            if state[1] == velocity - 1:  # Left Wall
-                danger_right = 1
-        elif head == 3:  # West
-            if state[0] == n - velocity:  # Bottom Wall
-                danger_left = 1
-            if state[1] == velocity - 1:  # Left Wall
-                danger_top = 1
-            if state[0] == velocity - 1:  # Top Wall
-                danger_right = 1
-        opponent_top = 0
-        opponent_bottom = 0
-        opponent_left = 0
-        opponent_right = 0
-        if opp_state[0] < state[0]:
-            opponent_top = 1
-        if opp_state[0] > state[0]:
-            opponent_bottom = 1
-        if opp_state[1] < state[1]:
-            opponent_left = 1
-        if opp_state[1] > state[1]:
-            opponent_right = 1
-        food_spawn = self.env.live_foodspawn_space[closeFood[0]]
-        food_top = 0
-        food_bottom = 0
-        food_left = 0
-        food_right = 0
-        if food_spawn[0] < state[0]:
-            food_top = 1
-        if food_spawn[0] > state[0]:
-            food_bottom = 1
-        if food_spawn[1] < state[1]:
-            food_left = 1
-        if food_spawn[1] > state[1]:
-            food_right = 1
-        obs = [0] * 16
-        obs[head] = 1
-        obs[4] = danger_top
-        obs[5] = danger_left
-        obs[6] = danger_right
-        obs[7] = opponent_top
-        obs[8] = opponent_bottom
-        obs[9] = opponent_left
-        obs[10] = opponent_right
-        obs[11] = food_top
-        obs[12] = food_bottom
-        obs[13] = food_left
-        obs[14] = food_right
-        obs[15] = score
-
-        obs = np.array([obs]).reshape(1, -1)
-        return obs
+            obs[[2, 3]] = obs[[3, 2]]
+            obs = obs.reshape(1, -1)
+            score = agentB["score"] / 100
+            obs = np.append(obs, [agentB["head"], score])
+            obs = obs.reshape(1, -1)
+            return obs
 
 
-model = tf.keras.models.load_model("model-refined.h5")
+model = tf.keras.models.load_model("model-more.h5")
 runner = Runner(model, model, "./")
 runner.arena()
